@@ -57,6 +57,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        glass: {
+          bg: "hsl(var(--glass-bg))",
+          border: "hsl(var(--glass-border))",
+        },
+      },
+      backgroundImage: {
+        'gradient-ai': 'linear-gradient(135deg, hsl(var(--gradient-start)), hsl(var(--gradient-end)))',
+        'gradient-radial': 'radial-gradient(ellipse at center, hsl(var(--gradient-start) / 0.2), transparent)',
       },
       borderRadius: {
         lg: "var(--radius)",
