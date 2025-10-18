@@ -7,6 +7,7 @@ import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatArea } from "@/components/chat/ChatArea";
 import { FileUploadDialog } from "@/components/upload/FileUploadDialog";
 import { ReportGenerator } from "@/components/reports/ReportGenerator";
+import { FilesList } from "@/components/files/FilesList";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ const Dashboard = () => {
         chatId={selectedChatId}
         onChatCreated={setSelectedChatId}
       />
+      <FilesList chatId={selectedChatId} userId={session.user.id} />
       {selectedChatId && (
         <ReportGenerator chatId={selectedChatId} userId={session.user.id} />
       )}

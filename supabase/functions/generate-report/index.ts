@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,10 +15,18 @@ serve(async (req) => {
   try {
     const { chatId, messages, files } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Supabase credentials not configured");
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Create a summary of the conversation using AI
     const conversationText = messages
@@ -166,15 +175,29 @@ serve(async (req) => {
 </html>
     `;
 
-    // In a production app, you would convert this to PDF and upload to storage
-    // For now, we'll return the HTML as a data URL
-    const base64Html = btoa(unescape(encodeURIComponent(htmlReport)));
-    const downloadUrl = `data:text/html;base64,${base64Html}`;
+    // Save HTML report to storage
+    const fileName = `${chatId}/${Date.now()}.html`;
+    const { error: uploadError } = await supabase.storage
+      .from("reports")
+      .upload(fileName, new Blob([htmlReport], { type: "text/html" }), {
+        contentType: "text/html",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      throw uploadError;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("reports")
+      .getPublicUrl(fileName);
 
     return new Response(
       JSON.stringify({
-        pdfPath: `reports/${chatId}/${Date.now()}.html`,
-        downloadUrl,
+        pdfPath: fileName,
+        downloadUrl: urlData.publicUrl,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

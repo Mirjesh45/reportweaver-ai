@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, MessageSquare, LogOut, Sparkles } from "lucide-react";
+import { Plus, MessageSquare, LogOut, Sparkles, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -21,11 +22,26 @@ interface ChatSidebarProps {
 export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSidebarProps) => {
   const navigate = useNavigate();
   const [chats, setChats] = useState<Chat[]>([]);
+  const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchChats();
   }, [userId]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredChats(chats);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredChats(
+        chats.filter((chat) =>
+          chat.title.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [searchQuery, chats]);
 
   const fetchChats = async () => {
     try {
@@ -104,8 +120,8 @@ export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSideba
 
   return (
     <div className="w-64 border-r border-border bg-sidebar flex flex-col">
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="p-4 border-b border-sidebar-border space-y-3">
+        <div className="flex items-center gap-2">
           <div className="p-2 rounded-lg bg-gradient-ai">
             <Sparkles className="w-5 h-5 text-background" />
           </div>
@@ -118,6 +134,15 @@ export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSideba
           <Plus className="w-4 h-4 mr-2" />
           New Chat
         </Button>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
       <ScrollArea className="flex-1 p-2">
@@ -127,14 +152,16 @@ export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSideba
               <div key={i} className="h-12 bg-sidebar-accent rounded-lg animate-pulse" />
             ))}
           </div>
-        ) : chats.length === 0 ? (
+        ) : filteredChats.length === 0 ? (
           <div className="text-center text-muted-foreground p-4">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No chats yet</p>
+            <p className="text-sm">
+              {searchQuery ? "No chats found" : "No chats yet"}
+            </p>
           </div>
         ) : (
           <div className="space-y-1">
-            {chats.map((chat) => (
+            {filteredChats.map((chat) => (
               <button
                 key={chat.id}
                 onClick={() => onSelectChat(chat.id)}
