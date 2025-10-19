@@ -125,6 +125,18 @@ serve(async (req) => {
       border-radius: 4px;
       border: 1px solid #e5e7eb;
     }
+    .image-preview {
+      max-width: 400px;
+      margin: 10px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .images-section {
+      margin-top: 30px;
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
@@ -159,11 +171,21 @@ serve(async (req) => {
     <h2>Attached Files</h2>
     ${files
       .map(
-        (f: any) => `
+        (f: any) => {
+          const isImage = f.mime_type && f.mime_type.startsWith('image/');
+          return `
       <div class="file-item">
         <strong>${f.filename}</strong> (${(f.size / 1024).toFixed(2)} KB)
+        ${isImage && f.file_path ? `
+        <div class="images-section">
+          <img src="${SUPABASE_URL}/storage/v1/object/public/files/${f.file_path}" 
+               alt="${f.filename}" 
+               class="image-preview" />
+        </div>
+        ` : ''}
       </div>
-    `
+    `;
+        }
       )
       .join("")}
   </div>

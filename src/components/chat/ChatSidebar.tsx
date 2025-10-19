@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, MessageSquare, LogOut, Sparkles, Search } from "lucide-react";
+import { Plus, MessageSquare, LogOut, Sparkles, Search, Trash2, Edit2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -25,6 +25,8 @@ export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSideba
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   useEffect(() => {
     fetchChats();
@@ -118,6 +120,64 @@ export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSideba
     navigate("/auth");
   };
 
+  const deleteChat = async (chatId: string) => {
+    try {
+      const { error } = await supabase
+        .from("chats")
+        .delete()
+        .eq("id", chatId);
+
+      if (error) throw error;
+
+      setChats(chats.filter((chat) => chat.id !== chatId));
+      if (selectedChatId === chatId) {
+        onSelectChat(chats[0]?.id || "");
+      }
+      toast.success("Chat deleted");
+    } catch (error: any) {
+      toast.error("Failed to delete chat");
+      console.error(error);
+    }
+  };
+
+  const startRenaming = (chat: Chat) => {
+    setEditingChatId(chat.id);
+    setEditingTitle(chat.title);
+  };
+
+  const cancelRenaming = () => {
+    setEditingChatId(null);
+    setEditingTitle("");
+  };
+
+  const saveRename = async (chatId: string) => {
+    if (!editingTitle.trim()) {
+      toast.error("Chat title cannot be empty");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("chats")
+        .update({ title: editingTitle.trim() })
+        .eq("id", chatId);
+
+      if (error) throw error;
+
+      setChats(
+        chats.map((chat) =>
+          chat.id === chatId ? { ...chat, title: editingTitle.trim() } : chat
+        )
+      );
+      setEditingChatId(null);
+      setEditingTitle("");
+      toast.success("Chat renamed");
+    } catch (error: any) {
+      toast.error("Failed to rename chat");
+      console.error(error);
+    }
+  };
+
   return (
     <div className="w-64 border-r border-border bg-sidebar flex flex-col">
       <div className="p-4 border-b border-sidebar-border space-y-3">
@@ -162,20 +222,80 @@ export const ChatSidebar = ({ userId, selectedChatId, onSelectChat }: ChatSideba
         ) : (
           <div className="space-y-1">
             {filteredChats.map((chat) => (
-              <button
+              <div
                 key={chat.id}
-                onClick={() => onSelectChat(chat.id)}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
+                className={`group relative p-3 rounded-lg transition-colors ${
                   selectedChatId === chat.id
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "hover:bg-sidebar-accent/50"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate text-sm">{chat.title}</span>
-                </div>
-              </button>
+                {editingChatId === chat.id ? (
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                    <Input
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      className="h-7 text-sm"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveRename(chat.id);
+                        if (e.key === "Escape") cancelRenaming();
+                      }}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => saveRename(chat.id)}
+                    >
+                      <Check className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={cancelRenaming}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onSelectChat(chat.id)}
+                      className="flex items-center gap-2 flex-1 min-w-0"
+                    >
+                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate text-sm">{chat.title}</span>
+                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startRenaming(chat);
+                        }}
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteChat(chat.id);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
