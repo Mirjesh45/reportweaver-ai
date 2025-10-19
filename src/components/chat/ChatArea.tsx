@@ -12,6 +12,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  content_type?: string;
+  file_id?: string;
 }
 
 interface ChatAreaProps {

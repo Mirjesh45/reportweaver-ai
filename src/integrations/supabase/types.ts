@@ -156,6 +156,7 @@ export type Database = {
           content: string
           content_type: string | null
           created_at: string | null
+          file_id: string | null
           id: string
           role: string
         }
@@ -164,6 +165,7 @@ export type Database = {
           content: string
           content_type?: string | null
           created_at?: string | null
+          file_id?: string | null
           id?: string
           role: string
         }
@@ -172,6 +174,7 @@ export type Database = {
           content?: string
           content_type?: string | null
           created_at?: string | null
+          file_id?: string | null
           id?: string
           role?: string
         }
@@ -181,6 +184,13 @@ export type Database = {
             columns: ["chat_id"]
             isOneToOne: false
             referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
             referencedColumns: ["id"]
           },
         ]

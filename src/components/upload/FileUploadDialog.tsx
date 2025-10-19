@@ -62,6 +62,15 @@ export const FileUploadDialog = ({ userId, chatId }: FileUploadDialogProps) => {
 
         if (dbError) throw dbError;
 
+        // Create a message for the uploaded file
+        await supabase.from("messages").insert({
+          chat_id: chatId,
+          role: "user",
+          content: `Uploaded file: ${file.name}`,
+          content_type: file.type.startsWith("image/") ? "image" : "file",
+          file_id: fileRecord.id,
+        });
+
         // If it's an image, process OCR and generate hash
         if (file.type.startsWith("image/")) {
           const { data: urlData } = supabase.storage
