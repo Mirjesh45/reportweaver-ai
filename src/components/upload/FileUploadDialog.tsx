@@ -47,14 +47,43 @@ export const FileUploadDialog = ({ userId, chatId }: FileUploadDialogProps) => {
         if (uploadError) throw uploadError;
 
         // Save file metadata to database
-        await supabase.from("files").insert({
-          user_id: userId,
-          chat_id: chatId,
-          filename: file.name,
-          mime_type: file.type,
-          file_path: fileName,
-          size: file.size,
-        });
+        const { data: fileRecord, error: dbError } = await supabase
+          .from("files")
+          .insert({
+            user_id: userId,
+            chat_id: chatId,
+            filename: file.name,
+            mime_type: file.type,
+            file_path: fileName,
+            size: file.size,
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+
+        // If it's an image, process OCR and generate hash
+        if (file.type.startsWith("image/")) {
+          const { data: urlData } = supabase.storage
+            .from("files")
+            .getPublicUrl(fileName);
+
+          // Trigger OCR processing in background
+          supabase.functions
+            .invoke("process-image-ocr", {
+              body: {
+                fileId: fileRecord.id,
+                fileUrl: urlData.publicUrl,
+              },
+            })
+            .then(({ data, error }) => {
+              if (error) {
+                console.error("OCR processing error:", error);
+              } else {
+                console.log("OCR completed:", data);
+              }
+            });
+        }
       }
 
       toast.success(`${selectedFiles.length} file(s) uploaded successfully`);

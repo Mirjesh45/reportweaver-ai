@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      blockchain_verifications: {
+        Row: {
+          blockchain_tx_id: string | null
+          file_hash: string
+          file_id: string
+          id: string
+          metadata: Json | null
+          status: string
+          verification_hash: string
+          verified_at: string
+          verified_by: string | null
+        }
+        Insert: {
+          blockchain_tx_id?: string | null
+          file_hash: string
+          file_id: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          verification_hash: string
+          verified_at?: string
+          verified_by?: string | null
+        }
+        Update: {
+          blockchain_tx_id?: string | null
+          file_hash?: string
+          file_id?: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          verification_hash?: string
+          verified_at?: string
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blockchain_verifications_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chats: {
         Row: {
           created_at: string | null
@@ -49,36 +93,45 @@ export type Database = {
       files: {
         Row: {
           chat_id: string | null
+          file_hash: string | null
           file_path: string
           filename: string
           id: string
           mime_type: string
+          ocr_text: string | null
           size: number
           thumbnail_path: string | null
           uploaded_at: string | null
           user_id: string
+          verified_at: string | null
         }
         Insert: {
           chat_id?: string | null
+          file_hash?: string | null
           file_path: string
           filename: string
           id?: string
           mime_type: string
+          ocr_text?: string | null
           size: number
           thumbnail_path?: string | null
           uploaded_at?: string | null
           user_id: string
+          verified_at?: string | null
         }
         Update: {
           chat_id?: string | null
+          file_hash?: string | null
           file_path?: string
           filename?: string
           id?: string
           mime_type?: string
+          ocr_text?: string | null
           size?: number
           thumbnail_path?: string | null
           uploaded_at?: string | null
           user_id?: string
+          verified_at?: string | null
         }
         Relationships: [
           {

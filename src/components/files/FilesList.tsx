@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { File, Image, Video, FileText, Eye } from "lucide-react";
+import { File, Image, Video, FileText, Eye, Shield, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { FilePreview } from "./FilePreview";
 
@@ -84,9 +84,22 @@ export const FilesList = ({ chatId, userId }: FilesListProps) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{file.filename}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(file.size / 1024).toFixed(2)} KB
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {(file.size / 1024).toFixed(2)} KB
+                        </p>
+                        {file.file_hash && (
+                          <div className="flex items-center gap-1" title="Blockchain verified">
+                            <ShieldCheck className="w-3 h-3 text-green-600" />
+                            <span className="text-xs text-green-600">Verified</span>
+                          </div>
+                        )}
+                        {file.ocr_text && (
+                          <span className="text-xs bg-blue-100 text-blue-600 px-1 rounded">
+                            OCR
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <Button
                       variant="ghost"

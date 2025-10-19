@@ -90,12 +90,35 @@ export const FilePreview = ({ fileId, onClose }: FilePreviewProps) => {
 
     if (mimeType.startsWith("image/")) {
       return (
-        <div className="flex items-center justify-center p-4">
-          <img 
-            src={fileUrl} 
-            alt={fileData.filename} 
-            className="max-h-[70vh] max-w-full object-contain rounded-lg"
-          />
+        <div className="space-y-4">
+          <div className="flex items-center justify-center p-4">
+            <img 
+              src={fileUrl} 
+              alt={fileData.filename} 
+              className="max-h-[60vh] max-w-full object-contain rounded-lg"
+            />
+          </div>
+          {fileData.ocr_text && (
+            <div className="p-4 bg-secondary rounded-lg">
+              <p className="text-sm font-medium mb-2">Extracted Text (OCR):</p>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {fileData.ocr_text}
+              </p>
+            </div>
+          )}
+          {fileData.file_hash && (
+            <div className="p-3 bg-secondary/50 rounded-lg">
+              <p className="text-xs font-medium mb-1">Blockchain Hash:</p>
+              <p className="text-xs font-mono text-muted-foreground break-all">
+                {fileData.file_hash}
+              </p>
+              {fileData.verified_at && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ Verified on {new Date(fileData.verified_at).toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -134,6 +157,27 @@ export const FilePreview = ({ fileId, onClose }: FilePreviewProps) => {
         <p className="text-sm text-muted-foreground">
           {(fileData.size / 1024).toFixed(2)} KB
         </p>
+        {fileData.ocr_text && (
+          <div className="w-full mt-4 p-4 bg-secondary rounded-lg">
+            <p className="text-sm font-medium mb-2">Extracted Text (OCR):</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {fileData.ocr_text}
+            </p>
+          </div>
+        )}
+        {fileData.file_hash && (
+          <div className="w-full mt-2 p-3 bg-secondary/50 rounded-lg">
+            <p className="text-xs font-medium mb-1">Blockchain Hash:</p>
+            <p className="text-xs font-mono text-muted-foreground break-all">
+              {fileData.file_hash}
+            </p>
+            {fileData.verified_at && (
+              <p className="text-xs text-green-600 mt-1">
+                ✓ Verified on {new Date(fileData.verified_at).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
         <Button onClick={downloadFile} className="bg-gradient-ai">
           <Download className="w-4 h-4 mr-2" />
           Download File

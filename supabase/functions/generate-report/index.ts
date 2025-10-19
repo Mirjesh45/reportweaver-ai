@@ -176,6 +176,23 @@ serve(async (req) => {
           return `
       <div class="file-item">
         <strong>${f.filename}</strong> (${(f.size / 1024).toFixed(2)} KB)
+        ${f.file_hash ? `
+        <div style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
+          <p style="margin: 0; font-size: 0.875rem; font-weight: 600; color: #1e40af;">🔒 Blockchain Verified</p>
+          <p style="margin: 5px 0 0 0; font-family: monospace; font-size: 0.75rem; color: #475569; word-break: break-all;">
+            Hash: ${f.file_hash}
+          </p>
+          ${f.verified_at ? `<p style="margin: 5px 0 0 0; font-size: 0.75rem; color: #059669;">✓ Verified: ${new Date(f.verified_at).toLocaleString()}</p>` : ''}
+        </div>
+        ` : ''}
+        ${f.ocr_text ? `
+        <div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px;">
+          <p style="margin: 0; font-size: 0.875rem; font-weight: 600; color: #92400e;">📝 Extracted Text (OCR)</p>
+          <p style="margin: 5px 0 0 0; font-size: 0.875rem; color: #451a03; white-space: pre-wrap;">
+            ${f.ocr_text}
+          </p>
+        </div>
+        ` : ''}
         ${isImage && f.file_path ? `
         <div class="images-section">
           <img src="${SUPABASE_URL}/storage/v1/object/public/files/${f.file_path}" 
