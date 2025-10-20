@@ -27,6 +27,7 @@ export const ChatArea = ({ userId, chatId, onChatCreated }: ChatAreaProps) => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [caption, setCaption] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -203,11 +204,20 @@ export const ChatArea = ({ userId, chatId, onChatCreated }: ChatAreaProps) => {
           </div>
 
           <div className="border-t border-border p-4">
+            {caption && (
+              <div className="max-w-4xl mx-auto mb-2 p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground italic">{caption}</p>
+              </div>
+            )}
             <div className="flex items-end gap-2 max-w-4xl mx-auto">
               <VoiceRecorder 
-                onTranscription={(text) => setInput(text)}
+                onTranscription={(text) => {
+                  setInput(text);
+                  setCaption("");
+                }}
                 recording={recording}
                 setRecording={setRecording}
+                onInterimCaption={setCaption}
               />
               <Textarea
                 value={input}

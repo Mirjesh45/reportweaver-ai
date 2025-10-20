@@ -30,13 +30,14 @@ serve(async (req) => {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Create form data for Gemini API
+    // Create form data for audio transcription
     const formData = new FormData();
     const blob = new Blob([bytes], { type: "audio/webm" });
     formData.append("file", blob, "audio.webm");
     formData.append("model", "whisper-1");
+    formData.append("response_format", "json");
 
-    // Use Gemini for audio transcription through Lovable AI
+    // Use Whisper API through Lovable AI
     const response = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
       method: "POST",
       headers: {

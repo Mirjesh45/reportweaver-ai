@@ -8,12 +8,14 @@ interface VoiceRecorderProps {
   onTranscription: (text: string) => void;
   recording: boolean;
   setRecording: (recording: boolean) => void;
+  onInterimCaption?: (text: string) => void;
 }
 
-export const VoiceRecorder = ({ onTranscription, recording, setRecording }: VoiceRecorderProps) => {
+export const VoiceRecorder = ({ onTranscription, recording, setRecording, onInterimCaption }: VoiceRecorderProps) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const startRecording = async () => {
     try {
@@ -29,6 +31,31 @@ export const VoiceRecorder = ({ onTranscription, recording, setRecording }: Voic
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
 
+      // Start Web Speech API for real-time captions
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        
+        recognitionRef.current.onresult = (event: any) => {
+          let interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              if (onInterimCaption) onInterimCaption('');
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          if (interimTranscript && onInterimCaption) {
+            onInterimCaption(interimTranscript);
+          }
+        };
+        
+        recognitionRef.current.start();
+      }
+
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -38,6 +65,11 @@ export const VoiceRecorder = ({ onTranscription, recording, setRecording }: Voic
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         await transcribeAudio(audioBlob);
+        
+        // Stop speech recognition
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
         
         // Clean up stream
         if (streamRef.current) {
