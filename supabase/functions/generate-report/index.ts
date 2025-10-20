@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { PDFDocument, rgb, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,165 +62,227 @@ serve(async (req) => {
     const summaryData = await summaryResponse.json();
     const summary = summaryData.choices[0].message.content;
 
-    // Generate HTML report
-    const htmlReport = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>AI Report</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      line-height: 1.6;
-      color: #1a1a1a;
-    }
-    h1 {
-      color: #3b82f6;
-      border-bottom: 3px solid #3b82f6;
-      padding-bottom: 10px;
-      margin-bottom: 30px;
-    }
-    h2 {
-      color: #6366f1;
-      margin-top: 30px;
-    }
-    .metadata {
-      background: #f3f4f6;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
-    }
-    .message {
-      margin: 20px 0;
-      padding: 15px;
-      border-left: 4px solid #e5e7eb;
-    }
-    .message.user {
-      border-left-color: #3b82f6;
-      background: #eff6ff;
-    }
-    .message.assistant {
-      border-left-color: #6366f1;
-      background: #eef2ff;
-    }
-    .message-role {
-      font-weight: 600;
-      margin-bottom: 5px;
-      text-transform: uppercase;
-      font-size: 0.875rem;
-    }
-    .files {
-      background: #f9fafb;
-      padding: 20px;
-      border-radius: 8px;
-      margin-top: 30px;
-    }
-    .file-item {
-      padding: 10px;
-      margin: 5px 0;
-      background: white;
-      border-radius: 4px;
-      border: 1px solid #e5e7eb;
-    }
-    .image-preview {
-      max-width: 400px;
-      margin: 10px 0;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .images-section {
-      margin-top: 30px;
-      background: #f9fafb;
-      padding: 20px;
-      border-radius: 8px;
-    }
-  </style>
-</head>
-<body>
-  <h1>AI Report</h1>
-  
-  <div class="metadata">
-    <h2>Report Information</h2>
-    <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-    <p><strong>Messages:</strong> ${messages.length}</p>
-    <p><strong>Files:</strong> ${files?.length || 0}</p>
-  </div>
-
-  <h2>Executive Summary</h2>
-  <div style="white-space: pre-wrap;">${summary}</div>
-
-  <h2>Conversation Transcript</h2>
-  ${messages
-    .map(
-      (m: any) => `
-    <div class="message ${m.role}">
-      <div class="message-role">${m.role}</div>
-      <div>${m.content}</div>
-    </div>
-  `
-    )
-    .join("")}
-
-  ${
-    files && files.length > 0
-      ? `
-  <div class="files">
-    <h2>Attached Files</h2>
-    ${files
-      .map(
-        (f: any) => {
-          const isImage = f.mime_type && f.mime_type.startsWith('image/');
-          return `
-      <div class="file-item">
-        <strong>${f.filename}</strong> (${(f.size / 1024).toFixed(2)} KB)
-        ${f.file_hash ? `
-        <div style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
-          <p style="margin: 0; font-size: 0.875rem; font-weight: 600; color: #1e40af;">🔒 Blockchain Verified</p>
-          <p style="margin: 5px 0 0 0; font-family: monospace; font-size: 0.75rem; color: #475569; word-break: break-all;">
-            Hash: ${f.file_hash}
-          </p>
-          ${f.verified_at ? `<p style="margin: 5px 0 0 0; font-size: 0.75rem; color: #059669;">✓ Verified: ${new Date(f.verified_at).toLocaleString()}</p>` : ''}
-        </div>
-        ` : ''}
-        ${f.ocr_text ? `
-        <div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px;">
-          <p style="margin: 0; font-size: 0.875rem; font-weight: 600; color: #92400e;">📝 Extracted Text (OCR)</p>
-          <p style="margin: 5px 0 0 0; font-size: 0.875rem; color: #451a03; white-space: pre-wrap;">
-            ${f.ocr_text}
-          </p>
-        </div>
-        ` : ''}
-        ${isImage && f.file_path ? `
-        <div class="images-section">
-          <img src="${SUPABASE_URL}/storage/v1/object/public/files/${f.file_path}" 
-               alt="${f.filename}" 
-               class="image-preview" />
-        </div>
-        ` : ''}
-      </div>
-    `;
+    // Create PDF document
+    const pdfDoc = await PDFDocument.create();
+    const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    const courierFont = await pdfDoc.embedFont(StandardFonts.Courier);
+    
+    let page = pdfDoc.addPage([595, 842]); // A4 size
+    let yPosition = 800;
+    const margin = 50;
+    const pageWidth = 595 - 2 * margin;
+    
+    // Helper function to add new page if needed
+    const checkAndAddPage = (requiredSpace: number) => {
+      if (yPosition - requiredSpace < 50) {
+        page = pdfDoc.addPage([595, 842]);
+        yPosition = 800;
+        return true;
+      }
+      return false;
+    };
+    
+    // Helper function to draw wrapped text
+    const drawWrappedText = (text: string, fontSize: number, font: any, maxWidth: number) => {
+      const words = text.split(' ');
+      let line = '';
+      const lines: string[] = [];
+      
+      words.forEach(word => {
+        const testLine = line + (line ? ' ' : '') + word;
+        const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+        if (testWidth > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = testLine;
         }
-      )
-      .join("")}
-  </div>
-  `
-      : ""
-  }
-
-</body>
-</html>
-    `;
-
-    // Save HTML report to storage
-    const fileName = `${chatId}/${Date.now()}.html`;
+      });
+      if (line) lines.push(line);
+      
+      lines.forEach((line) => {
+        checkAndAddPage(fontSize + 5);
+        page.drawText(line, {
+          x: margin,
+          y: yPosition,
+          size: fontSize,
+          font: font,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= fontSize + 5;
+      });
+    };
+    
+    // Title
+    page.drawText('AI REPORT', {
+      x: margin,
+      y: yPosition,
+      size: 24,
+      font: timesRomanBoldFont,
+      color: rgb(0.23, 0.51, 0.96),
+    });
+    yPosition -= 40;
+    
+    // Metadata section
+    page.drawText('Report Information', {
+      x: margin,
+      y: yPosition,
+      size: 16,
+      font: timesRomanBoldFont,
+      color: rgb(0.39, 0.40, 0.95),
+    });
+    yPosition -= 25;
+    
+    page.drawText(`Generated: ${new Date().toLocaleString()}`, {
+      x: margin,
+      y: yPosition,
+      size: 12,
+      font: timesRomanFont,
+    });
+    yPosition -= 20;
+    
+    page.drawText(`Messages: ${messages.length}`, {
+      x: margin,
+      y: yPosition,
+      size: 12,
+      font: timesRomanFont,
+    });
+    yPosition -= 20;
+    
+    page.drawText(`Files: ${files?.length || 0}`, {
+      x: margin,
+      y: yPosition,
+      size: 12,
+      font: timesRomanFont,
+    });
+    yPosition -= 40;
+    
+    // Executive Summary
+    checkAndAddPage(50);
+    page.drawText('Executive Summary', {
+      x: margin,
+      y: yPosition,
+      size: 16,
+      font: timesRomanBoldFont,
+      color: rgb(0.39, 0.40, 0.95),
+    });
+    yPosition -= 25;
+    
+    drawWrappedText(summary, 11, timesRomanFont, pageWidth);
+    yPosition -= 30;
+    
+    // Conversation Transcript
+    checkAndAddPage(50);
+    page.drawText('Conversation Transcript', {
+      x: margin,
+      y: yPosition,
+      size: 16,
+      font: timesRomanBoldFont,
+      color: rgb(0.39, 0.40, 0.95),
+    });
+    yPosition -= 25;
+    
+    messages.forEach((m: any) => {
+      checkAndAddPage(60);
+      
+      page.drawText(m.role.toUpperCase(), {
+        x: margin,
+        y: yPosition,
+        size: 10,
+        font: timesRomanBoldFont,
+        color: m.role === 'user' ? rgb(0.23, 0.51, 0.96) : rgb(0.39, 0.40, 0.95),
+      });
+      yPosition -= 15;
+      
+      drawWrappedText(m.content, 10, timesRomanFont, pageWidth);
+      yPosition -= 15;
+    });
+    
+    // Files section
+    if (files && files.length > 0) {
+      checkAndAddPage(50);
+      page.drawText('Attached Files', {
+        x: margin,
+        y: yPosition,
+        size: 16,
+        font: timesRomanBoldFont,
+        color: rgb(0.39, 0.40, 0.95),
+      });
+      yPosition -= 25;
+      
+      files.forEach((f: any) => {
+        checkAndAddPage(80);
+        
+        page.drawText(`${f.filename} (${(f.size / 1024).toFixed(2)} KB)`, {
+          x: margin,
+          y: yPosition,
+          size: 11,
+          font: timesRomanBoldFont,
+        });
+        yPosition -= 18;
+        
+        if (f.file_hash) {
+          page.drawText('Blockchain Verified', {
+            x: margin + 10,
+            y: yPosition,
+            size: 9,
+            font: timesRomanBoldFont,
+            color: rgb(0.12, 0.25, 0.69),
+          });
+          yPosition -= 15;
+          
+          const hashText = `Hash: ${f.file_hash}`;
+          const hashWords = hashText.match(/.{1,80}/g) || [hashText];
+          hashWords.forEach(part => {
+            checkAndAddPage(15);
+            page.drawText(part, {
+              x: margin + 10,
+              y: yPosition,
+              size: 8,
+              font: courierFont,
+              color: rgb(0.28, 0.33, 0.41),
+            });
+            yPosition -= 12;
+          });
+          
+          if (f.verified_at) {
+            page.drawText(`Verified: ${new Date(f.verified_at).toLocaleString()}`, {
+              x: margin + 10,
+              y: yPosition,
+              size: 8,
+              font: timesRomanFont,
+              color: rgb(0.02, 0.59, 0.41),
+            });
+            yPosition -= 15;
+          }
+        }
+        
+        if (f.ocr_text) {
+          checkAndAddPage(20);
+          page.drawText('Extracted Text (OCR):', {
+            x: margin + 10,
+            y: yPosition,
+            size: 9,
+            font: timesRomanBoldFont,
+            color: rgb(0.57, 0.25, 0.05),
+          });
+          yPosition -= 15;
+          
+          drawWrappedText(f.ocr_text, 8, timesRomanFont, pageWidth - 20);
+        }
+        
+        yPosition -= 20;
+      });
+    }
+    
+    // Save PDF
+    const pdfBytes = await pdfDoc.save();
+    const fileName = `${chatId}/${Date.now()}.pdf`;
     const { error: uploadError } = await supabase.storage
       .from("reports")
-      .upload(fileName, new Blob([htmlReport], { type: "text/html" }), {
-        contentType: "text/html",
+      .upload(fileName, new Blob([pdfBytes], { type: "application/pdf" }), {
+        contentType: "application/pdf",
         upsert: false,
       });
 
