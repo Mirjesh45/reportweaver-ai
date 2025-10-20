@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
@@ -10,26 +11,42 @@ interface VoiceRecorderProps {
 }
 
 export const VoiceRecorder = ({ onTranscription, recording, setRecording }: VoiceRecorderProps) => {
-  let mediaRecorder: MediaRecorder | null = null;
-  let audioChunks: Blob[] = [];
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      streamRef.current = stream;
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         await transcribeAudio(audioBlob);
-        stream.getTracks().forEach((track) => track.stop());
+        
+        // Clean up stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
       };
 
-      mediaRecorder.start();
+      mediaRecorderRef.current.start();
       setRecording(true);
       toast.success("Recording started");
     } catch (error) {
@@ -39,10 +56,10 @@ export const VoiceRecorder = ({ onTranscription, recording, setRecording }: Voic
   };
 
   const stopRecording = () => {
-    if (mediaRecorder && recording) {
-      mediaRecorder.stop();
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop();
       setRecording(false);
-      toast.success("Recording stopped");
+      toast.info("Processing audio...");
     }
   };
 
@@ -73,6 +90,7 @@ export const VoiceRecorder = ({ onTranscription, recording, setRecording }: Voic
       variant={recording ? "destructive" : "outline"}
       size="icon"
       type="button"
+      className={recording ? "animate-pulse" : ""}
     >
       {recording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
     </Button>
