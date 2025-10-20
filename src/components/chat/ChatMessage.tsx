@@ -1,6 +1,8 @@
-import { User, Bot, File, Image as ImageIcon, ShieldCheck } from "lucide-react";
+import { User, Bot, File, Image as ImageIcon, ShieldCheck, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -50,13 +52,36 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
       if (error) throw error;
       setFileData(data);
 
-      // Get public URL for the file
-      const { data: urlData } = supabase.storage
+      // Get signed URL for the file
+      const { data: urlData } = await supabase.storage
         .from("files")
-        .getPublicUrl(data.file_path);
-      setFileUrl(urlData.publicUrl);
+        .createSignedUrl(data.file_path, 3600);
+      
+      if (urlData?.signedUrl) {
+        setFileUrl(urlData.signedUrl);
+      }
     } catch (error) {
       console.error("Error fetching file data:", error);
+    }
+  };
+
+  const downloadFile = async () => {
+    if (!fileUrl || !fileData) return;
+
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileData.filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("File downloaded");
+    } catch (error) {
+      toast.error("Failed to download file");
     }
   };
 
@@ -89,6 +114,15 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
                 className="rounded-lg max-w-full max-h-64 object-contain"
               />
             )}
+            {fileData.mime_type === "application/pdf" && fileUrl && (
+              <div className="w-full">
+                <iframe
+                  src={fileUrl}
+                  className="w-full h-96 rounded-lg border border-border"
+                  title={fileData.filename}
+                />
+              </div>
+            )}
             <div className="flex items-start gap-2">
               {fileData.mime_type.startsWith("image/") ? (
                 <ImageIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -104,6 +138,14 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
               {fileData.file_hash && (
                 <ShieldCheck className="w-4 h-4 text-green-500 flex-shrink-0" />
               )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 flex-shrink-0"
+                onClick={downloadFile}
+              >
+                <Download className="w-3 h-3" />
+              </Button>
             </div>
             {fileData.ocr_text && (
               <div className="pt-2 border-t border-border/50">
